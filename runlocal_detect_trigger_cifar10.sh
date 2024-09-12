@@ -13,6 +13,6 @@ python detector.py \
   \
   --fname ../checkpoint/cifar10/CTRL_SIMCLR_Cifar10.tar \
   --test_file_path ../data/cifar10/test_filelist.txt \
-  --ratio 0.1 \
+  --ratio 0.05 \
   --dataset cifar10 \
   --trigger_path ../trigger_estimation_ctrl_simclr_cifar10

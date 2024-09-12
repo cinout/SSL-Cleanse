@@ -13,7 +13,7 @@
 
 #SBATCH --job-name="ct_c100"
 #SBATCH --account=punim1623
-#SBATCH --time=0-03:00:00
+#SBATCH --time=0-20:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -48,7 +48,7 @@ python detector.py \
   \
   --fname ../checkpoint/cifar100/CTRL_SIMCLR_Cifar100.tar \
   --test_file_path ../data/cifar100/test_filelist.txt \
-  --ratio 0.1 \
+  --ratio 0.05 \
   --dataset cifar100 \
   --trigger_path ../trigger_estimation_ctrl_simclr_cifar100
 

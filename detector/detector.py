@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
         KMeans = KMeans(n_clusters=cfg.num_clusters, random_state=0, n_init=30).fit(rep)
         y = KMeans.labels_
-        print(f">>>> y: {y}")
+        print(f">>>> np.unique(y): {np.unique(y)}")
 
         cluster_purities = {}
         first_label = {}

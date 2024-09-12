@@ -13,7 +13,7 @@
 
 #SBATCH --job-name="ctrl_img"
 #SBATCH --account=punim1623
-#SBATCH --time=0-03:00:00
+#SBATCH --time=0-20:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -48,7 +48,7 @@ python detector.py \
   \
   --fname ../checkpoint/imagenet/CTRL_SIMCLR_Imagenet100.tar \
   --test_file_path ../data/imagenet/test_filelist.txt \
-  --ratio 0.1 \
+  --ratio 0.05 \
   --dataset imagenet \
   --trigger_path ../trigger_estimation_ctrl_simclr_imagenet100
 

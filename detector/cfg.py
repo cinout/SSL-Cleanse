@@ -7,10 +7,14 @@ from methods import METHOD_LIST
 
 
 def get_cfg():
-    """ generates configuration from user input in console """
+    """generates configuration from user input in console"""
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
-        "--method", type=str, choices=METHOD_LIST, default="byol", help="loss type",
+        "--method",
+        type=str,
+        choices=METHOD_LIST,
+        default="byol",
+        help="loss type",
     )
     parser.add_argument(
         "--wandb",
@@ -92,7 +96,10 @@ def get_cfg():
     )
 
     parser.add_argument(
-        "--no_norm", dest="norm", action="store_false", help="don't normalize latents",
+        "--no_norm",
+        dest="norm",
+        action="store_false",
+        help="don't normalize latents",
     )
     parser.add_argument(
         "--tau", type=float, default=0.5, help="contrastive loss temperature"
@@ -110,7 +117,10 @@ def get_cfg():
     )
     parser.add_argument("--emb", type=int, default=64, help="embedding size")
     parser.add_argument(
-        "--bs", type=int, default=512, help="number of original images in batch N",
+        "--bs",
+        type=int,
+        default=512,
+        help="number of original images in batch N",
     )
     parser.add_argument(
         "--drop",
@@ -136,7 +146,7 @@ def get_cfg():
     parser.add_argument(
         "--num_workers",
         type=int,
-        default=8,
+        default=1,
         help="dataset workers number",
     )
     parser.add_argument(
@@ -147,7 +157,9 @@ def get_cfg():
         help="classifier for test.py",
     )
     parser.add_argument(
-        "--eval_head", action="store_true", help="eval head output instead of model",
+        "--eval_head",
+        action="store_true",
+        help="eval head output instead of model",
     )
     # parser.add_argument("--imagenet_path", type=str, default="~/IN100/")
     parser.add_argument("--test_file_path", type=str, default="")
@@ -156,7 +168,9 @@ def get_cfg():
     parser.add_argument("--clf_chkpt", type=str, default="")
     parser.add_argument("--evaluate", dest="evaluate", action="store_true")
     parser.add_argument("--eval_data", type=str, default="")
-    parser.add_argument("--save_folder_root", type=str, default="/home/jiaq/detection/output")
+    parser.add_argument(
+        "--save_folder_root", type=str, default="/home/jiaq/detection/output"
+    )
     parser.add_argument("--lam", type=float, default=0.0001)
     parser.add_argument("--early_stop", action="store_true")
     parser.add_argument("--attack_succ_threshold", type=float, default=0.98)

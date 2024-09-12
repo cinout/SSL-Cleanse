@@ -11,8 +11,8 @@ python detector.py \
   --num_clusters 12 \
   --knn_sample_num 1000 \
   \
-  --fname ../checkpoint/imagenet/CTRL_SIMCLR_Imagenet100.tar \
-  --test_file_path ../data/imagenet/test_filelist.txt \
+  --fname ../checkpoint/cifar10/CTRL_SIMCLR_Cifar10.tar \
+  --test_file_path ../data/cifar10/test_filelist.txt \
   --ratio 0.1 \
-  --dataset imagenet \
-  --trigger_path ../trigger_estimation_ctrl_simclr_imagenet100
+  --dataset cifar10 \
+  --trigger_path ../trigger_estimation_ctrl_simclr_cifar10

@@ -58,7 +58,11 @@ if __name__ == "__main__":
     elif "CTRL" in cfg.fname:
         for k, v in loaded_checkpoint["state_dict"].items():
             if k.startswith("backbone"):
-                pretrained_model[k.replace("backbone", "module")] = v
+                k = k.replace("backbone", "module")
+                if "shortcut" in k:  # cifar10 and cifar100 have this issue
+                    k = k.replace("shortcut", "downsample")
+                pretrained_model[k] = v
+
     else:
         raise Exception("OMG")
 
@@ -87,6 +91,7 @@ if __name__ == "__main__":
 
         KMeans = KMeans(n_clusters=cfg.num_clusters, random_state=0, n_init=30).fit(rep)
         y = KMeans.labels_
+        print(f">>>> y: {y}")
 
         cluster_purities = {}
         first_label = {}

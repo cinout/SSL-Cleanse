@@ -1,7 +1,7 @@
 import torch
 import torchvision.transforms.functional as F
 from torch import nn
-
+from torchvision import models
 import const
 
 
@@ -32,22 +32,24 @@ def eval(encoder, classifier, loader, mask, delta, dataset, target, topk):
     if dataset == "cifar100":
         num_class = 100
         MEAN, STD = const.CIFAR100_MEAN, const.CIFAR100_STD
-    y_pred = torch.empty(len(loader), loader.batch_size, num_class, dtype=torch.float, device="cuda")
-    y_true = torch.empty(len(loader), loader.batch_size, dtype=torch.long, device="cuda")
+    y_pred = torch.empty(
+        len(loader), loader.batch_size, num_class, dtype=torch.float, device="cuda"
+    )
+    y_true = torch.empty(
+        len(loader), loader.batch_size, dtype=torch.long, device="cuda"
+    )
     with torch.no_grad():
         for i, (X, y) in enumerate(loader):
             y_pred[i] = classifier(encoder.model(draw(X, mask, delta, MEAN, STD)))
             y_true[i] = y.cuda()
-        y_pred = y_pred.topk(max(topk), 2, largest=True, sorted=True).indices.reshape(-1, 5)
+        y_pred = y_pred.topk(max(topk), 2, largest=True, sorted=True).indices.reshape(
+            -1, 5
+        )
         y_true = y_true.reshape(-1, 1)
         y_t_pred = y_pred[(y_true != target).squeeze()]
-        acc = {
-            t: (y_pred[:, :t] == y_true).float().sum(1).mean().item()
-            for t in topk
-        }
+        acc = {t: (y_pred[:, :t] == y_true).float().sum(1).mean().item() for t in topk}
         asr = {
-            t: (y_t_pred[:, :t] == target).float().sum(1).mean().item()
-            for t in topk
+            t: (y_t_pred[:, :t] == target).float().sum(1).mean().item() for t in topk
         }
     return acc, asr
 
@@ -61,14 +63,24 @@ def get_clf(encoder, dataset):
     return clf
 
 
-def eval_knn(device, encoder, loader, rep_center, y_center, target, k=1):
+def eval_knn(device, encoder, loader, rep_center, y_center, target, arch, k=1):
     rep_center, y_center = rep_center.to(device), y_center.to(device)
+
+    output_size = getattr(models, arch)(
+        weights=None
+    ).fc.in_features  # TODO: my update [BYOL]
+
     with torch.no_grad():
-        rep = torch.empty((len(loader), loader.batch_size, encoder.out_size), dtype=torch.float, device=device)
+        rep = torch.empty(
+            (len(loader), loader.batch_size, output_size),
+            dtype=torch.float,
+            device=device,
+        )
         for i, x in enumerate(loader):
             x = x.to(device)
-            rep[i] = encoder.model(x)
-        rep = rep.view((-1, encoder.out_size))
+            # rep[i] = encoder.model(x)
+            rep[i] = encoder(x)  # TODO: my update [BYOL]
+        rep = rep.view((-1, output_size))
         d_t = torch.cdist(rep, rep_center)
         topk_t = torch.topk(d_t, k=k, dim=1, largest=False)
         labels_t = y_center[topk_t.indices]
@@ -81,22 +93,32 @@ def eval_knn(device, encoder, loader, rep_center, y_center, target, k=1):
     return asr
 
 
-def get_data(device, encoder, loader, width):
-    output_size = encoder.out_size
+def get_data(device, encoder, loader, width, arch):
+    # output_size = encoder.out_size
+    output_size = getattr(models, arch)(
+        weights=None
+    ).fc.in_features  # TODO: my update [BYOL]
+
     input_size = (3, width, width)
-    xs = torch.empty(len(loader), loader.batch_size, *input_size, dtype=torch.float32, device=device)
+    xs = torch.empty(
+        len(loader), loader.batch_size, *input_size, dtype=torch.float32, device=device
+    )
     ys = torch.empty(len(loader), loader.batch_size, dtype=torch.long, device=device)
-    reps = torch.empty(len(loader), loader.batch_size, output_size, dtype=torch.float32, device=device)
+    reps = torch.empty(
+        len(loader), loader.batch_size, output_size, dtype=torch.float32, device=device
+    )
+
     with torch.no_grad():
         for i, (x, y) in enumerate(loader):
             x, y = x.to(device), y.to(device)
-            reps[i] = encoder.model(x)
+            # reps[i] = encoder.model(x)
+            reps[i] = encoder(x)  # TODO: my update [BYOL]
             xs[i] = x
             ys[i] = y
     xs = xs.view(-1, *input_size)
     ys = ys.view(-1)
     reps = reps.view(-1, output_size)
-    return reps.to('cpu'), xs.to('cpu'), ys.to('cpu')
+    return reps.to("cpu"), xs.to("cpu"), ys.to("cpu")
 
 
 def outlier(l1_norm_list):

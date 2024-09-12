@@ -7,14 +7,15 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from sklearn.cluster import KMeans
-
+import torch.nn.functional as F
 import const
+from methods.norm_mse import norm_mse_loss
 from cfg import get_cfg
 from datasets import get_ds
 from methods import get_method
 from utils import eval_knn, get_data, draw, outlier
 
-# TODO: this file is for backdoor detection, not mitigation
+
 if __name__ == "__main__":
     cfg = get_cfg()
 
@@ -40,8 +41,19 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ds = get_ds(cfg.dataset)(cfg.num_workers, cfg.test_file_path)
     encoder = get_method(cfg.method)(cfg)
+
+    encoder = encoder.model  # TODO: my update [byol]
+
     encoder.to(device).eval()
-    encoder.load_state_dict(torch.load(cfg.fname, map_location=torch.device(device)))
+
+    # TODO: my update [byol]
+    pretrained_model = {}
+    loaded_checkpoint = torch.load(cfg.fname, map_location=torch.device(device))
+    for k, v in loaded_checkpoint["state_dict"].items():
+        if k.startswith("module.encoder_q") and not k.startswith("module.encoder_q.fc"):
+            pretrained_model[k.replace("encoder_q.", "")] = v
+
+    encoder.load_state_dict(pretrained_model)
     for param in encoder.parameters():
         param.requires_grad = False
 
@@ -57,7 +69,10 @@ if __name__ == "__main__":
         width = const.CIFAR10_WIDTH
 
     with torch.no_grad():
-        rep, x, y_true = get_data(device, encoder, ds.dataloader_init(cfg.ratio), width)
+        rep, x, y_true = get_data(
+            device, encoder, ds.dataloader_init(cfg.ratio), width, cfg.arch
+        )
+
         KMeans = KMeans(n_clusters=cfg.num_clusters, random_state=0, n_init=30).fit(rep)
         y = KMeans.labels_
 
@@ -99,7 +114,11 @@ if __name__ == "__main__":
             rep_knn, y_knn = rep_center, y_center
         else:
             rep_knn, y_knn = rep, torch.tensor(y)
+
     reg_best_list = torch.empty(len(np.unique(y)))
+
+    loss_f = norm_mse_loss if cfg.norm else F.mse_loss  # TODO: my update [BYOL]
+
     for target in np.unique(y):
         logging.info(
             f"cluster label: {target}, 1st label: {first_label[target]}, "
@@ -146,8 +165,10 @@ if __name__ == "__main__":
                 delta_tanh = torch.tanh(delta) / 2 + 0.5
                 X_R = draw(images, mean, std, mask_tanh, delta_tanh)
                 z = target_reps
-                zt = encoder.model(X_R)
-                loss_asr = encoder.loss_f(z, zt)
+                # zt = encoder.model(X_R)
+                zt = encoder(X_R)  # TODO: my update [BYOL]
+                # loss_asr = encoder.loss_f(z, zt)
+                loss_asr = loss_f(z, zt)  # TODO: my update [BYOL]
                 loss_reg = torch.mean(mask_tanh * delta_tanh)
                 loss = loss_asr + lam * loss_reg
                 opt.zero_grad()
@@ -166,7 +187,9 @@ if __name__ == "__main__":
                 draw(x.to(device), mean, std, mask_tanh, delta_tanh).detach().to("cpu")
             )
             dataloader_eval = ds.dataloader_knn(x_trigger, cfg.knn_sample_num)
-            asr_knn = eval_knn(device, encoder, dataloader_eval, rep_knn, y_knn, target)
+            asr_knn = eval_knn(
+                device, encoder, dataloader_eval, rep_knn, y_knn, target, cfg.arch
+            )
             if asr_knn > cfg.attack_succ_threshold and avg_loss_reg < reg_best:
                 mask_best = mask_tanh
                 delta_best = delta_tanh

@@ -17,20 +17,24 @@ from utils import eval_knn, get_data, draw, outlier
 if __name__ == "__main__":
     cfg = get_cfg()
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s => %(message)s')
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s => %(message)s")
     now = datetime.datetime.now()
     os.makedirs(f"./result/detection/{cfg.dataset}", exist_ok=True)
-    log_filename = os.path.join(f"./result/detection/{cfg.dataset}", now.strftime('%Y-%m-%d %H-%M-%S') + '.log')
-    file_handler = logging.FileHandler(filename=log_filename, encoding='utf-8')
+    log_filename = os.path.join(
+        f"./result/detection/{cfg.dataset}", now.strftime("%Y-%m-%d %H-%M-%S") + ".log"
+    )
+    file_handler = logging.FileHandler(filename=log_filename, encoding="utf-8")
     file_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s => %(message)s')
-    formatter.datefmt = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter("%(asctime)s => %(message)s")
+    formatter.datefmt = "%Y-%m-%d %H:%M:%S"
     file_handler.setFormatter(formatter)
     logging.getLogger().addHandler(file_handler)
 
-    logging.info(f'Parameters: dataset={cfg.dataset}, num_clusters={cfg.num_clusters}, ratio={cfg.ratio}, '
-                 f'attack_succ_threshold={cfg.attack_succ_threshold}, target_center={cfg.target_center}, '
-                 f'fname={cfg.fname}, knn_center={cfg.knn_center}')
+    logging.info(
+        f"Parameters: dataset={cfg.dataset}, num_clusters={cfg.num_clusters}, ratio={cfg.ratio}, "
+        f"attack_succ_threshold={cfg.attack_succ_threshold}, target_center={cfg.target_center}, "
+        f"fname={cfg.fname}, knn_center={cfg.knn_center}"
+    )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ds = get_ds(cfg.dataset)(cfg.num_workers, cfg.test_file_path)
@@ -52,7 +56,9 @@ if __name__ == "__main__":
         width = const.CIFAR10_WIDTH
 
     with torch.no_grad():
-        rep, x, y_true = get_data(device, encoder, ds.dataloader_init(cfg.ratio), width)
+        rep, x, y_true = get_data(
+            device, encoder, ds.dataloader_init(cfg.ratio), width, cfg.arch
+        )
         KMeans = KMeans(n_clusters=cfg.num_clusters, random_state=0, n_init=30).fit(rep)
         y = KMeans.labels_
 
@@ -61,7 +67,7 @@ if __name__ == "__main__":
         second_label = {}
         counts_label = {}
         for i in range(np.unique(y).shape[0]):
-            mask = (y == i)
+            mask = y == i
             cluster_labels = y_true[mask]
 
             values, counts = torch.unique(cluster_labels, return_counts=True)
@@ -78,9 +84,11 @@ if __name__ == "__main__":
         summ = 0
         for i in cluster_purities.keys():
             summ += cluster_purities[i]
-        info_str = f"overall cluster purity: {summ / np.unique(y).shape[0]:.2f}, " \
-                   f"min num: {min(counts_label.values())}, max num: {max(counts_label.values())}, " \
-                   f"total num: {sum(counts_label.values())}"
+        info_str = (
+            f"overall cluster purity: {summ / np.unique(y).shape[0]:.2f}, "
+            f"min num: {min(counts_label.values())}, max num: {max(counts_label.values())}, "
+            f"total num: {sum(counts_label.values())}"
+        )
         logging.info(info_str)
 
         rep_center = torch.empty((len(np.unique(y)), rep.shape[1]))
@@ -94,12 +102,16 @@ if __name__ == "__main__":
             rep_knn, y_knn = rep, torch.tensor(y)
     reg_best_list = torch.empty(len(np.unique(y)))
     for target in np.unique(y):
-        logging.info(f"cluster label: {target}, 1st label: {first_label[target]}, "
-                     f"2nd label: {second_label[target]}, cluster num: {counts_label[target]}, "
-                     f"purity: {cluster_purities[target]:.2f}")
+        logging.info(
+            f"cluster label: {target}, 1st label: {first_label[target]}, "
+            f"2nd label: {second_label[target]}, cluster num: {counts_label[target]}, "
+            f"purity: {cluster_purities[target]:.2f}"
+        )
         rep_target = rep[y == target]
         x_other = x[y != target]
-        x_other_indices = torch.randperm(x_other.shape[0])[:x.shape[0] - max(counts_label.values())]
+        x_other_indices = torch.randperm(x_other.shape[0])[
+            : x.shape[0] - max(counts_label.values())
+        ]
         x_other_sample = x_other[x_other_indices]
 
         mask = torch.arctanh((torch.rand([1, 1, width, width]) - 0.5) * 2).to(device)
@@ -121,7 +133,9 @@ if __name__ == "__main__":
         cost_down_flag = False
 
         if cfg.target_center:
-            dataloader_train = ds.dataloader_cluster_fix(rep_center[target], x_other_sample, cfg.bs)
+            dataloader_train = ds.dataloader_cluster_fix(
+                rep_center[target], x_other_sample, cfg.bs
+            )
         else:
             dataloader_train = ds.dataloader_cluster(rep_target, x_other_sample, cfg.bs)
         for ep in range(cfg.epoch):
@@ -149,16 +163,22 @@ if __name__ == "__main__":
             avg_loss_reg = torch.tensor(loss_reg_list).mean()
             avg_loss = torch.tensor(loss_list).mean()
 
-            x_trigger = draw(x.to(device), mean, std, mask_tanh, delta_tanh).detach().to('cpu')
+            x_trigger = (
+                draw(x.to(device), mean, std, mask_tanh, delta_tanh).detach().to("cpu")
+            )
             dataloader_eval = ds.dataloader_knn(x_trigger, cfg.knn_sample_num)
-            asr_knn = eval_knn(device, encoder, dataloader_eval, rep_knn, y_knn, target)
+            asr_knn = eval_knn(
+                device, encoder, dataloader_eval, rep_knn, y_knn, target, cfg.arch
+            )
             if asr_knn > cfg.attack_succ_threshold and avg_loss_reg < reg_best:
                 mask_best = mask_tanh
                 delta_best = delta_tanh
                 reg_best = avg_loss_reg
 
-            logging.info('step: %3d, lam: %.2E, asr: %.3f, loss: %f, ce: %f, reg: %f, reg_best: %f' %
-                         (ep, lam, asr_knn, avg_loss, avg_loss_asr, avg_loss_reg, reg_best))
+            logging.info(
+                "step: %3d, lam: %.2E, asr: %.3f, loss: %f, ce: %f, reg: %f, reg_best: %f"
+                % (ep, lam, asr_knn, avg_loss, avg_loss_asr, avg_loss_reg, reg_best)
+            )
 
             # check early stop
             if cfg.early_stop:
@@ -171,11 +191,13 @@ if __name__ == "__main__":
                     early_stop_reg_best = min(reg_best, early_stop_reg_best)
 
                     if early_stop_counter >= cfg.early_stop_patience:
-                        logging.info('early stop')
+                        logging.info("early stop")
                         break
 
-                elif ep == cfg.start_early_stop_patience and (lam == 0 or reg_best == torch.inf):
-                    logging.info('early stop')
+                elif ep == cfg.start_early_stop_patience and (
+                    lam == 0 or reg_best == torch.inf
+                ):
+                    logging.info("early stop")
                     break
 
             if lam == 0 and asr_knn >= cfg.attack_succ_threshold:
@@ -186,7 +208,7 @@ if __name__ == "__main__":
                     cost_down_counter = 0
                     cost_up_flag = False
                     cost_down_flag = False
-                    logging.info('initialize cost to %.2E' % lam)
+                    logging.info("initialize cost to %.2E" % lam)
             else:
                 cost_set_counter = 0
 
@@ -199,21 +221,27 @@ if __name__ == "__main__":
 
             if lam != 0 and cost_up_counter >= cfg.patience:
                 cost_up_counter = 0
-                logging.info('up cost from %.2E to %.2E' % (lam, lam * cfg.lam_multiplier_up))
+                logging.info(
+                    "up cost from %.2E to %.2E" % (lam, lam * cfg.lam_multiplier_up)
+                )
                 lam *= cfg.lam_multiplier_up
                 cost_up_flag = True
             elif lam != 0 and cost_down_counter >= cfg.patience:
                 cost_down_counter = 0
-                logging.info('down cost from %.2E to %.2E' % (lam, lam / cfg.lam_multiplier_up))
+                logging.info(
+                    "down cost from %.2E to %.2E" % (lam, lam / cfg.lam_multiplier_up)
+                )
                 lam /= cfg.lam_multiplier_up
                 cost_down_flag = True
-
 
         reg_best_list[target] = reg_best if reg_best != torch.inf else 1
 
     os.makedirs(cfg.trigger_path, exist_ok=True)
-    torch.save({'mask': mask_best, 'delta': delta_best}, os.path.join(cfg.trigger_path, f'{target}.pth'))
+    torch.save(
+        {"mask": mask_best, "delta": delta_best},
+        os.path.join(cfg.trigger_path, f"{target}.pth"),
+    )
 
-    logging.info(f'reg best list: {reg_best_list}')
+    logging.info(f"reg best list: {reg_best_list}")
     median, mad, min_mad = outlier(reg_best_list)
-    logging.info(f'median: {median:.2f}, MAD: {mad:.2f}, anomaly index: {min_mad:.2f}')
+    logging.info(f"median: {median:.2f}, MAD: {mad:.2f}, anomaly index: {min_mad:.2f}")

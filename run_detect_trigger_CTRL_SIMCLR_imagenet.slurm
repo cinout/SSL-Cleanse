@@ -11,7 +11,7 @@
 #SBATCH --qos=gpgpudeeplearn
 #SBATCH --constraint=dlg4|dlg5|dlg6
 
-#SBATCH --job-name="htba"
+#SBATCH --job-name="ctrl_img"
 #SBATCH --account=punim1623
 #SBATCH --time=0-03:00:00
 
@@ -46,11 +46,11 @@ python detector.py \
   --num_clusters 12 \
   --knn_sample_num 1000 \
   \
-  --fname ../checkpoint/imagenet/HTBA_BYOL_Imagenet100.tar \
+  --fname ../checkpoint/imagenet/CTRL_SIMCLR_Imagenet100.tar \
   --test_file_path ../data/imagenet/test_filelist.txt \
   --ratio 0.1 \
   --dataset imagenet \
-  --trigger_path ../trigger_estimation_htba_byol_imagenet100
+  --trigger_path ../trigger_estimation_ctrl_simclr_imagenet100
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

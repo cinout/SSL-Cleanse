@@ -49,9 +49,18 @@ if __name__ == "__main__":
     # TODO: my update [byol]
     pretrained_model = {}
     loaded_checkpoint = torch.load(cfg.fname, map_location=torch.device(device))
-    for k, v in loaded_checkpoint["state_dict"].items():
-        if k.startswith("module.encoder_q") and not k.startswith("module.encoder_q.fc"):
-            pretrained_model[k.replace("encoder_q.", "")] = v
+    if "HTBA" in cfg.fname:
+        for k, v in loaded_checkpoint["state_dict"].items():
+            if k.startswith("module.encoder_q") and not k.startswith(
+                "module.encoder_q.fc"
+            ):
+                pretrained_model[k.replace("encoder_q.", "")] = v
+    elif "CTRL" in cfg.fname:
+        for k, v in loaded_checkpoint["state_dict"].items():
+            if k.startswith("backbone"):
+                pretrained_model[k.replace("backbone", "module")] = v
+    else:
+        raise Exception("OMG")
 
     encoder.load_state_dict(pretrained_model)
     for param in encoder.parameters():
@@ -67,6 +76,9 @@ if __name__ == "__main__":
     if cfg.dataset == "cifar10":
         mean, std = const.CIFAR10_MEAN, const.CIFAR10_STD
         width = const.CIFAR10_WIDTH
+    if cfg.dataset == "cifar100":
+        mean, std = const.CIFAR100_MEAN, const.CIFAR100_STD
+        width = const.CIFAR100_WIDTH
 
     with torch.no_grad():
         rep, x, y_true = get_data(

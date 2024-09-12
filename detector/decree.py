@@ -54,6 +54,9 @@ if __name__ == "__main__":
     if cfg.dataset == "cifar10":
         mean, std = const.CIFAR10_MEAN, const.CIFAR10_STD
         width = const.CIFAR10_WIDTH
+    if cfg.dataset == "cifar100":
+        mean, std = const.CIFAR100_MEAN, const.CIFAR100_STD
+        width = const.CIFAR100_WIDTH
 
     with torch.no_grad():
         rep, x, y_true = get_data(

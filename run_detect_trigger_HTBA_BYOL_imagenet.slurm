@@ -9,11 +9,11 @@
 
 #SBATCH --partition=deeplearn
 #SBATCH --qos=gpgpudeeplearn
-#SBATCH --constraint=dlg5|dlg6
+#SBATCH --constraint=dlg4|dlg5|dlg6
 
 #SBATCH --job-name="cf10"
 #SBATCH --account=punim1623
-#SBATCH --time=0-03:00:00
+#SBATCH --time=0-04:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -37,9 +37,20 @@ conda activate anogpt
 cd detector
 
 python detector.py \
-  --dataset imagenet --emb 128 --lr 1e-1 --bs 32 --epoch 1000 --lam 1e-1 --attack_succ_threshold 0.99 \
-  --fname ../checkpoint/imagenet/HTBA_BYOL_Imagenet100.tar --test_file_path ../data/imagenet/test_filelist.txt \
-  --num_clusters 12 --knn_sample_num 1000 --ratio 0.1 --trigger_path ../trigger_estimation
+  --emb 128 \
+  --lr 1e-1 \
+  --bs 32 \
+  --epoch 1000 \
+  --lam 1e-1 \
+  --attack_succ_threshold 0.99 \
+  --num_clusters 12 \
+  --knn_sample_num 1000 \
+  \
+  --fname ../checkpoint/imagenet/HTBA_BYOL_Imagenet100.tar \
+  --test_file_path ../data/imagenet/test_filelist.txt \
+  --ratio 0.1 \
+  --dataset imagenet \
+  --trigger_path ../trigger_estimation_htba_byol_imagenet100
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
